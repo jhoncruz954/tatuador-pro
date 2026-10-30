@@ -149,14 +149,13 @@ export default function Configuracion() {
               className="w-full"
             />
           </div>
-                  </div>
-                </CardContent>
-                </Card>
-          
-                <Card className="bg-[#1a1a1a] border-[#333]">
-                  <CardHeader>
-                    <CardTitle className="text-[#d4af37]">🔐 Pie de Documentos</CardTitle>
-                  </CardHeader>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-[#1a1a1a] border-[#333]">
+        <CardHeader>
+          <CardTitle className="text-[#d4af37]">🔐 Pie de Documentos</CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

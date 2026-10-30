@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useStorage } from '@/hooks/useStorage';
+import { useStorage, generarId } from '@/hooks/useStorage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 
 export default function Servicios() {
@@ -12,60 +13,45 @@ export default function Servicios() {
   const [servicios, setServicios] = useState<any[]>([]);
   const [editId, setEditId] = useState<string>('');
 
+  // Form state
+  const [form, setForm] = useState({
+    nombre: '',
+    tipoIva: 15,
+    precioSinIva: 0,
+  });
+
   useEffect(() => {
     setServicios(storage.getServicios());
   }, []);
 
-  const renderServicios = () => {
-    const div = document.getElementById('listaServicios');
-    if (!div) return;
-    const s = storage.getServicios();
-    setServicios(s);
-    if (s.length === 0) {
-      div.innerHTML = '<p style="color:#888;">Sin servicios.</p>';
-      return;
-    }
-    let html = '<table><thead><tr><th>ID</th><th>Nombre</th><th>IVA %</th><th>Sin IVA</th><th>Con IVA</th><th>Acciones</th></tr></thead><tbody>';
-    s.forEach((srv: any) => {
-      html += `<tr>
-        <td>${srv.id}</td>
-        <td>${srv.nombre}</td>
-        <td>${srv.tipoIva}%</td>
-        <td>$${(srv.precioSinIva || 0).toFixed(2)}</td>
-        <td>$${(srv.precioConIva || 0).toFixed(2)}</td>
-        <td>
-          <Button size="sm" variant="outline" onClick={() => editarServicio(srv.id)}>Editar</Button>
-          <Button size="sm" variant="danger" onClick={() => eliminarServicio(srv.id)}>Eliminar</Button>
-        </td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    div.innerHTML = html;
-  };
-
   const guardarServicio = () => {
-    const nombre = document.getElementById('srv-nombre')?.value?.trim() || '';
-    const tipoIva = parseFloat(document.getElementById('srv-tipoIva')?.value) || 0;
-    const precio = parseFloat(document.getElementById('srv-precio')?.value) || 0;
+    const { nombre, tipoIva, precioSinIva } = form;
 
     if (!nombre) {
       alert('El nombre es obligatorio.');
       return;
     }
 
-    const serviciosAct = storage.getServicios();
-    const sinIva = precio;
+    const sinIva = precioSinIva;
     const conIva = +(sinIva * (1 + tipoIva / 100)).toFixed(2);
 
+    const nuevo = {
+      id: editId || generarId(),
+      nombre,
+      tipoIva,
+      precioSinIva: sinIva,
+      precioConIva: conIva,
+    };
+
+    const serviciosAct = storage.getServicios();
     if (editId) {
       const idx = serviciosAct.findIndex((s: any) => s.id === editId);
       if (idx !== -1) {
-        serviciosAct[idx] = { ...serviciosAct[idx], nombre, tipoIva, precioSinIva: sinIva, precioConIva: conIva };
+        serviciosAct[idx] = nuevo;
         storage.saveServicios(serviciosAct);
         alert('Servicio actualizado.');
       }
     } else {
-      const nuevo = { id: 'SRV-' + Date.now().toString(36), nombre, tipoIva, precioSinIva: sinIva, precioConIva: conIva };
       serviciosAct.push(nuevo);
       storage.saveServicios(serviciosAct);
       alert('Servicio agregado.');
@@ -73,26 +59,28 @@ export default function Servicios() {
 
     setServicios(serviciosAct);
     cancelarEdicionServicio();
-    renderServicios();
   };
 
   const editarServicio = (id: string) => {
     const srv = storage.getServicios().find((s: any) => s.id === id);
     if (!srv) return;
-
-    document.getElementById('srv-editId')!.value = srv.id;
-    document.getElementById('srv-nombre')!.value = srv.nombre;
-    document.getElementById('srv-tipoIva')!.value = String(srv.tipoIva);
-    document.getElementById('srv-precio')!.value = String(srv.precioSinIva);
+    setEditId(srv.id);
+    setForm({
+      nombre: srv.nombre || '',
+      tipoIva: srv.tipoIva || 15,
+      precioSinIva: srv.precioSinIva || 0,
+    });
     document.getElementById('srv-formTitle')!.textContent = '✏️ Editar Servicio';
     document.getElementById('srv-btnGuardar')!.textContent = '💾 Actualizar Servicio';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelarEdicionServicio = () => {
-    document.getElementById('srv-editId')!.value = '';
-    ['srv-nombre', 'srv-tipoIva', 'srv-precio'].forEach((id) => {
-      (document.getElementById(id) as HTMLInputElement).value = '';
+    setEditId('');
+    setForm({
+      nombre: '',
+      tipoIva: 15,
+      precioSinIva: 0,
     });
     document.getElementById('srv-formTitle')!.textContent = '➕ Nuevo Servicio';
     document.getElementById('srv-btnGuardar')!.textContent = '💾 Guardar Servicio';
@@ -103,10 +91,34 @@ export default function Servicios() {
     const serviciosAct = storage.getServicios().filter((s: any) => s.id !== id);
     storage.saveServicios(serviciosAct);
     setServicios(serviciosAct);
-    if (document.getElementById('srv-editId')!.value === id) cancelarEdicionServicio();
-    renderServicios();
+    if (editId === id) cancelarEdicionServicio();
     alert('Servicio eliminado.');
   };
+
+  useEffect(() => {
+    document.getElementById('listaServicios')!.innerHTML = '';
+    const s = storage.getServicios();
+    if (s.length === 0) {
+      document.getElementById('listaServicios')!.innerHTML = '<p style="color:#888;">Sin servicios.</p>';
+      return;
+    }
+    let html = '<table><thead><tr><th>ID</th><th>Nombre</th><th>IVA %</th><th>Sin IVA</th><th>Con IVA</th><th>Acciones</th></tr></thead><tbody>';
+    s.forEach((item: any) => {
+      html += `<tr>
+        <td>${item.id}</td>
+        <td>${item.nombre}</td>
+        <td>${item.tipoIva}%</td>
+        <td>$${(item.precioSinIva || 0).toFixed(2)}</td>
+        <td>$${(item.precioConIva || 0).toFixed(2)}</td>
+        <td>
+          <button className="btn-sm btn-outline" onclick="window.editarServicio('${item.id}')">Editar</button>
+          <button className="btn-sm btn-danger" onclick="window.eliminarServicio('${item.id}')">Elim</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('listaServicios')!.innerHTML = html;
+  }, [servicios]);
 
   return (
     <div className="space-y-6">
@@ -119,7 +131,8 @@ export default function Servicios() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Nombre del servicio</label>
               <Input
-                id="srv-nombre"
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
                 type="text"
                 placeholder="Ej: Tatuaje pequeño"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
@@ -128,7 +141,8 @@ export default function Servicios() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">IVA %</label>
               <Input
-                id="srv-tipoIva"
+                value={form.tipoIva}
+                onChange={(e) => setForm({ ...form, tipoIva: parseFloat(e.target.value) || 15 })}
                 type="number"
                 step="0.01"
                 value={15}
@@ -138,7 +152,8 @@ export default function Servicios() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Precio sin IVA ($)</label>
               <Input
-                id="srv-precio"
+                value={form.precioSinIva}
+                onChange={(e) => setForm({ ...form, precioSinIva: parseFloat(e.target.value) || 0 })}
                 type="number"
                 step="0.01"
                 value={0}

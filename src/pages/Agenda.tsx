@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStorage } from '@/hooks/useStorage';
+import { useStorage, generarId } from '@/hooks/useStorage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,19 @@ export default function Agenda() {
   const storage = useStorage();
   const navigate = useNavigate();
   const [citas, setCitas] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string>('');
+
+  // Form state
+  const [form, setForm] = useState({
+    fecha: '',
+    hora: '',
+    clienteId: '',
+    clienteNombre: '',
+    servicioId: '',
+    servicioNombre: '',
+    estado: 'Pendiente',
+    notas: '',
+  });
 
   useEffect(() => {
     loadCitas();
@@ -77,29 +88,24 @@ export default function Agenda() {
   const loadCita = (id: string) => {
     const c = storage.getCitas().find((x: any) => x.id === id);
     if (!c) return;
-    document.getElementById('cit-editId')!.value = c.id;
-    document.getElementById('cit-fecha')!.value = c.fecha;
-    document.getElementById('cit-hora')!.value = c.hora;
-    document.getElementById('cit-clienteId')!.value = c.clienteId;
-    document.getElementById('cit-clienteNombre')!.value = c.clienteNombre;
-    document.getElementById('cit-servicioId')!.value = c.servicioId;
-    document.getElementById('cit-servicioNombre')!.value = c.servicioNombre;
-    document.getElementById('cit-estado')!.value = c.estado;
-    document.getElementById('cit-notas')!.value = c.notas || '';
+    setEditId(c.id);
+    setForm({
+      fecha: c.fecha || '',
+      hora: c.hora || '',
+      clienteId: c.clienteId || '',
+      clienteNombre: c.clienteNombre || '',
+      servicioId: c.servicioId || '',
+      servicioNombre: c.servicioNombre || '',
+      estado: c.estado || 'Pendiente',
+      notas: c.notas || '',
+    });
     document.getElementById('cit-formTitle')!.textContent = '✏️ Editar Cita';
     document.getElementById('cit-btnGuardar')!.textContent = '💾 Actualizar Cita';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const guardarCita = () => {
-    const fecha = document.getElementById('cit-fecha')?.value || '';
-    const hora = document.getElementById('cit-hora')?.value || '';
-    const clienteId = document.getElementById('cit-clienteId')?.value || '';
-    const clienteNombre = document.getElementById('cit-clienteNombre')?.value || '';
-    const servicioId = document.getElementById('cit-servicioId')?.value || '';
-    const servicioNombre = document.getElementById('cit-servicioNombre')?.value || '';
-    const estado = document.getElementById('cit-estado')?.value || 'Pendiente';
-    const notas = document.getElementById('cit-notas')?.value || '';
+    const { fecha, hora, clienteId, clienteNombre, servicioId, servicioNombre, estado, notas } = form;
 
     if (!fecha || !hora || !clienteId || !servicioId) {
       alert('Fecha, hora, cliente y servicio son obligatorios.');
@@ -115,7 +121,7 @@ export default function Agenda() {
         alert('Cita actualizada.');
       }
     } else {
-      const nueva = { id: storage.generarId(), fecha, hora, clienteId, clienteNombre, servicioId, servicioNombre, estado, notas };
+      const nueva = { id: generarId(), fecha, hora, clienteId, clienteNombre, servicioId, servicioNombre, estado, notas };
       citasAct.push(nueva);
       storage.saveCitas(citasAct);
       alert('Cita agendada.');
@@ -127,11 +133,17 @@ export default function Agenda() {
   };
 
   const cancelarEdicionCita = () => {
-    document.getElementById('cit-editId')!.value = '';
-    ['cit-fecha', 'cit-hora', 'cit-clienteId', 'cit-clienteNombre', 'cit-servicioId', 'cit-servicioNombre', 'cit-notas'].forEach((id) => {
-      (document.getElementById(id) as HTMLInputElement).value = '';
+    setEditId('');
+    setForm({
+      fecha: '',
+      hora: '',
+      clienteId: '',
+      clienteNombre: '',
+      servicioId: '',
+      servicioNombre: '',
+      estado: 'Pendiente',
+      notas: '',
     });
-    document.getElementById('cit-estado')!.value = 'Pendiente';
     document.getElementById('cit-formTitle')!.textContent = '➕ Agendar Cita';
     document.getElementById('cit-btnGuardar')!.textContent = '💾 Guardar Cita';
   };
@@ -145,6 +157,37 @@ export default function Agenda() {
     alert('Cita eliminada.');
   };
 
+  const renderCitas = () => {
+    const div = document.getElementById('listaCitas');
+    if (!div) return;
+    const c = storage.getCitas();
+    if (c.length === 0) {
+      div.innerHTML = '<p style="color:#888;">Sin citas.</p>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+    c.forEach((item: any) => {
+      html += `<tr>
+        <td>${item.fecha}</td>
+        <td>${item.hora}</td>
+        <td>${item.clienteNombre}</td>
+        <td>${item.servicioNombre}</td>
+        <td><span class="badge badge-${item.estado}">${item.estado}</span></td>
+        <td>
+          <button className="btn-sm btn-outline" onclick="window.loadCita('${item.id}')">Editar</button>
+          <button className="btn-sm btn-danger" onclick="window.eliminarCita('${item.id}')">Elim</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    div.innerHTML = html;
+  };
+
+  useEffect(() => {
+    renderCalendario();
+    renderCitas();
+  }, [citas]);
+
   return (
     <div className="space-y-6">
       <Card className="bg-[#1a1a1a] border-[#333]">
@@ -156,7 +199,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Fecha</label>
               <Input
-                id="cit-fecha"
+                value={form.fecha}
+                onChange={(e) => setForm({ ...form, fecha: e.target.value })}
                 type="date"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
@@ -164,7 +208,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Hora</label>
               <Input
-                id="cit-hora"
+                value={form.hora}
+                onChange={(e) => setForm({ ...form, hora: e.target.value })}
                 type="time"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
@@ -172,8 +217,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Cliente ID</label>
               <Input
-                id="cit-clienteId"
-                type="text"
+                value={form.clienteId}
+                onChange={(e) => setForm({ ...form, clienteId: e.target.value })}
                 placeholder="ID del cliente"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
@@ -181,8 +226,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Cliente Nombre</label>
               <Input
-                id="cit-clienteNombre"
-                type="text"
+                value={form.clienteNombre}
+                onChange={(e) => setForm({ ...form, clienteNombre: e.target.value })}
                 placeholder="Nombre del cliente"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
@@ -190,8 +235,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Servicio ID</label>
               <Input
-                id="cit-servicioId"
-                type="text"
+                value={form.servicioId}
+                onChange={(e) => setForm({ ...form, servicioId: e.target.value })}
                 placeholder="ID del servicio"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
@@ -199,8 +244,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Servicio Nombre</label>
               <Input
-                id="cit-servicioNombre"
-                type="text"
+                value={form.servicioNombre}
+                onChange={(e) => setForm({ ...form, servicioNombre: e.target.value })}
                 placeholder="Nombre del servicio"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
@@ -208,11 +253,11 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Estado</label>
               <Select
-                id="cit-estado"
-                className="w-full"
+                value={form.estado}
+                onValueChange={(v) => setForm({ ...form, estado: v })}
               >
                 <SelectTrigger>
-                  <SelectValue>Pendiente</SelectValue>
+                  <SelectValue>{form.estado}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Pendiente">Pendiente</SelectItem>
@@ -225,8 +270,8 @@ export default function Agenda() {
             <div>
               <label className="block text-sm text-[#aaa] mb-1">Notas</label>
               <Input
-                id="cit-notas"
-                type="text"
+                value={form.notas}
+                onChange={(e) => setForm({ ...form, notas: e.target.value })}
                 placeholder="Notas de la cita"
                 className="w-full rounded border-[#444] bg-[#222] px-3 py-2 text-sm focus:outline-none focus:border-[#d4af37]"
               />
