@@ -1,19 +1,20 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { MadeWithDyad } from "@/components/made-with-dyad";
+export default function Index() {
+  const navigate = useNavigate();
 
-const Index = () => {
+  useEffect(() => {
+    navigate('/dashboard');
+  }, [navigate]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="flex items-center justify-center h-screen">
       <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">
-          Start building your amazing project here!
-        </p>
+        <div className="text-4xl mb-4">🔱</div>
+        <h2 className="text-[#d4af37] text-xl">Tatuador Pro</h2>
+        <p className="text-[#888] mt-2">Redirigiendo al Dashboard...</p>
       </div>
-      <MadeWithDyad />
     </div>
   );
-};
-
-export default Index;
+}
